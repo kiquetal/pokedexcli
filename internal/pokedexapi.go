@@ -21,7 +21,12 @@ func GetLocations(url string) ([]structs.Result, string, string, error) {
 	if err != nil {
 		return nil, "", "", err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}(resp.Body)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
