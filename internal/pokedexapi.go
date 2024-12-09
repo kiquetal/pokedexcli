@@ -8,6 +8,11 @@ import (
 	"net/http"
 )
 
+type Pokemon struct {
+	Name string `json:"name"`
+	URL  string `json:"url"`
+}
+
 func GetLocations(url string) ([]structs.Result, string, string, error) {
 	var curl string
 	var locations structs.Resource
@@ -45,4 +50,34 @@ func GetLocations(url string) ([]structs.Result, string, string, error) {
 	}
 
 	return locations.Results, locations.Next, previousUrl, nil
+}
+func GetLocationArea(area string) ([]Pokemon, error) {
+	var locationArea structs.LocationArea
+	resp, err := http.Get(fmt.Sprintf("https://pokeapi.co/api/v2/location-area/%s", area))
+	if err != nil {
+		return []Pokemon{}, err
+	}
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}(resp.Body)
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return []Pokemon{}, err
+	}
+
+	err = json.Unmarshal(body, &locationArea)
+	if err != nil {
+		return []Pokemon{}, err
+	}
+
+	var pokemons []Pokemon
+	for _, encounter := range locationArea.PokemonEncounters {
+		pokemons = append(pokemons, encounter.Pokemon)
+	}
+
+	return pokemons, nil
 }

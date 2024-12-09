@@ -247,6 +247,43 @@ func mapBCommand(c *ConfigUrl, args ...string) error {
 func exploreCommand(c *ConfigUrl, args ...string) error {
 	fmt.Println("Exploring a location")
 	location := args[0]
-	fmt.Printf("Exploring location: %s\n", location)
+
+	//check if the location is in the cache
+	cachedValue, found := c.cache.Get(location)
+	if found {
+		fmt.Println("Using cached value")
+		fmt.Printf("Location:%s\n", location)
+		var pokemons []internal.Pokemon
+		if err := json.Unmarshal(cachedValue, &pokemons); err != nil {
+			fmt.Println("Error unmarshalling cached value")
+			return err
+		}
+		fmt.Printf("Location Area:%s\n", location)
+		return nil
+	}
+
+	// If not in cache, get from API
+	pokemonsFound, err := internal.GetLocationArea(location)
+	if err != nil {
+		fmt.Printf("Error getting location area: %s\n", err)
+		return err
+	}
+
+	// Marshal data before caching
+	data, err := json.Marshal(pokemonsFound)
+
+	if err != nil {
+		fmt.Println("Error marshalling locations")
+		return err
+	}
+
+	// Cache the results
+
+	c.cache.Add(location, data)
+	fmt.Println("Found Pokemon:")
+	for _, encounter := range pokemonsFound {
+		fmt.Printf("- %s\n", encounter.Name)
+	}
+
 	return nil
 }
