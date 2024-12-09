@@ -8,6 +8,7 @@ import (
 	"github.com/kiquetal/pokedexcli/internal/pokecache"
 	"github.com/mtslzr/pokeapi-go/structs"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -19,7 +20,7 @@ type ConfigUrl struct {
 type cliCommand struct {
 	name        string
 	description string
-	callback    func(url *ConfigUrl) error
+	callback    func(url *ConfigUrl, args ...string) error
 }
 
 func main() {
@@ -35,13 +36,19 @@ func main() {
 		scanner := bufio.NewScanner(os.Stdin)
 		scanner.Scan()
 		text := scanner.Text()
+		parts := strings.SplitN(text, " ", 2)
+		commandName := parts[0]
+		var args []string
+		if len(parts) > 1 {
+			args = strings.Split(parts[1], " ")
+		}
 		allCommands := getCommands()
-		command, ok := allCommands[text]
+		command, ok := allCommands[commandName]
 		if !ok {
 			fmt.Println("Command not found")
 			continue
 		}
-		err := command.callback(&config)
+		err := command.callback(&config, args...)
 		if err != nil {
 			fmt.Printf("Error executing command: %s\n", err)
 			fmt.Println("Error executing command")
@@ -79,12 +86,17 @@ func getCommands() map[string]cliCommand {
 			description: "Display cache",
 			callback:    cacheCommand,
 		},
+		"explore": cliCommand{
+			name:        "explore",
+			description: "Explore a location",
+			callback:    exploreCommand,
+		},
 	}
 
 	return commands
 }
 
-func cacheCommand(url *ConfigUrl) error {
+func cacheCommand(url *ConfigUrl, args ...string) error {
 	fmt.Printf("previos value: %s\n", url.Previous)
 	fmt.Printf("next value: %s\n", url.Next)
 	//print all the keys from the cache
@@ -95,18 +107,18 @@ func cacheCommand(url *ConfigUrl) error {
 	return nil
 }
 
-func helpCommand(c *ConfigUrl) error {
+func helpCommand(c *ConfigUrl, args ...string) error {
 	fmt.Printf("Welcome to the Pokedex !\n help: Display a help message\n exit: Exit the program\n")
 	return nil
 }
 
-func exitCommand(c *ConfigUrl) error {
+func exitCommand(c *ConfigUrl, args ...string) error {
 	fmt.Println("Goodbye!")
 	os.Exit(0)
 	return nil
 }
 
-func mapCommand(c *ConfigUrl) error {
+func mapCommand(c *ConfigUrl, args ...string) error {
 	fmt.Println("Getting location areas")
 
 	// If Next is empty, this is the first request
@@ -177,7 +189,7 @@ func mapCommand(c *ConfigUrl) error {
 	return nil
 }
 
-func mapBCommand(c *ConfigUrl) error {
+func mapBCommand(c *ConfigUrl, args ...string) error {
 	fmt.Println("Getting the Previous Results")
 
 	if c.Previous == "" {
@@ -230,4 +242,11 @@ func mapBCommand(c *ConfigUrl) error {
 
 	return nil
 
+}
+
+func exploreCommand(c *ConfigUrl, args ...string) error {
+	fmt.Println("Exploring a location")
+	location := args[0]
+	fmt.Printf("Exploring location: %s\n", location)
+	return nil
 }
