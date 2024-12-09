@@ -25,7 +25,7 @@ type cliCommand struct {
 func main() {
 
 	config := ConfigUrl{
-		cache: pokecache.NewCache(30 * time.Second),
+		cache: pokecache.NewCache(50 * time.Second),
 	}
 
 	for {
@@ -74,9 +74,25 @@ func getCommands() map[string]cliCommand {
 			description: "Return previous location areas",
 			callback:    mapBCommand,
 		},
+		"cache": cliCommand{
+			name:        "cache",
+			description: "Display cache",
+			callback:    cacheCommand,
+		},
 	}
 
 	return commands
+}
+
+func cacheCommand(url *ConfigUrl) error {
+	fmt.Printf("previos value: %s\n", url.Previous)
+	fmt.Printf("next value: %s\n", url.Next)
+	//print all the keys from the cache
+	keys := url.cache.Cache
+	for k := range keys {
+		fmt.Println(k)
+	}
+	return nil
 }
 
 func helpCommand(c *ConfigUrl) error {
@@ -93,22 +109,47 @@ func exitCommand(c *ConfigUrl) error {
 func mapCommand(c *ConfigUrl) error {
 	fmt.Println("Getting location areas")
 
-	// Check cache first
-	if c.Next != "" {
-		cachedValue, found := c.cache.Get(c.Next)
-		if found {
-			fmt.Println("Using cached value")
-			var locations []structs.Result
-			e := json.Unmarshal(cachedValue, &locations)
-			if e != nil {
-				fmt.Println("Error unmarshalling cached value")
-				return e
-			}
-			for _, location := range locations {
-				fmt.Println(location.Name)
-			}
-			return nil
+	// If Next is empty, this is the first request
+	if c.Next == "" {
+		locations, next, previous, err := internal.GetLocations("")
+		if err != nil {
+			fmt.Printf("Error getting locations: %s\n", err)
+			return err
 		}
+
+		// Marshal and cache the results
+		data, err := json.Marshal(locations)
+		if err != nil {
+			fmt.Println("Error marshalling locations")
+			return err
+		}
+
+		fmt.Printf("Adding to cache key:%s", c.Next)
+		c.cache.Add("https://pokeapi.co/api/v2/location-area?offset=0&limit=20", data)
+		fmt.Println("First request")
+
+		c.Next = next
+		c.Previous = previous
+
+		for _, location := range locations {
+			fmt.Println(location.Name)
+		}
+		return nil
+	}
+
+	// Check cache for subsequent requests
+	cachedValue, found := c.cache.Get(c.Next)
+	if found {
+		fmt.Println("Using cached value")
+		var locations []structs.Result
+		if err := json.Unmarshal(cachedValue, &locations); err != nil {
+			fmt.Println("Error unmarshalling cached value")
+			return err
+		}
+		for _, location := range locations {
+			fmt.Println(location.Name)
+		}
+		return nil
 	}
 
 	// If not in cache, get from API
@@ -118,16 +159,15 @@ func mapCommand(c *ConfigUrl) error {
 		return err
 	}
 
-	data, err2 := json.Marshal(locations)
-	if err2 != nil {
+	// Marshal and cache the results
+	data, err := json.Marshal(locations)
+	if err != nil {
 		fmt.Println("Error marshalling locations")
-		return err2
+		return err
 	}
 
-	// Cache the current results
 	c.cache.Add(c.Next, data)
-
-	// Update the URLs after caching
+	fmt.Printf("Adding to cache key:%s\n", c.Next)
 	c.Next = next
 	c.Previous = previous
 
@@ -140,21 +180,21 @@ func mapCommand(c *ConfigUrl) error {
 func mapBCommand(c *ConfigUrl) error {
 	fmt.Println("Getting the Previous Results")
 
-	// previous is an interface{} type, probably a Results struct
 	if c.Previous == "" {
 		fmt.Println("No previous results")
 		return nil
 	}
 
+	// Check cache first
+	fmt.Printf("Looking for key:%s\n", c.Previous)
 	cachedValue, found := c.cache.Get(c.Previous)
-	fmt.Println("Cached value: ", cachedValue)
 	if found {
 		fmt.Println("Using cached value")
+		fmt.Printf("Previous key:%s\n", c.Previous)
 		var locations []structs.Result
-		e := json.Unmarshal(cachedValue, &locations)
-		if e != nil {
+		if err := json.Unmarshal(cachedValue, &locations); err != nil {
 			fmt.Println("Error unmarshalling cached value")
-			return e
+			return err
 		}
 		for _, location := range locations {
 			fmt.Println(location.Name)
@@ -162,26 +202,32 @@ func mapBCommand(c *ConfigUrl) error {
 		return nil
 	}
 
+	// If not in cache, get from API
 	locations, next, previous, err := internal.GetLocations(c.Previous)
-
 	if err != nil {
 		fmt.Printf("Error getting previous results: %s\n", err)
 		return err
 	}
 
-	data, err2 := json.Marshal(locations)
-	c.cache.Add(previous, data)
-
-	c.Next = next
-	c.Previous = previous
-	if err2 != nil {
+	// Marshal data before caching
+	data, err := json.Marshal(locations)
+	if err != nil {
 		fmt.Println("Error marshalling locations")
-		return err2
+		return err
 	}
 
+	// Cache the results and update URLs
+
+	fmt.Printf("Adding to cache key:%s\n", c.Previous)
+	c.cache.Add(c.Previous, data)
+	c.Next = next
+	c.Previous = previous
+
+	// Display locations
 	for _, location := range locations {
 		fmt.Println(location.Name)
 	}
+
 	return nil
 
 }
