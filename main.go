@@ -28,12 +28,12 @@ func main() {
 	config := ConfigUrl{
 		cache: pokecache.NewCache(50 * time.Second),
 	}
+	scanner := bufio.NewScanner(os.Stdin)
 
 	for {
 		// Display the prompt
 		fmt.Print("pokedexcli> ")
 		//using newScanner
-		scanner := bufio.NewScanner(os.Stdin)
 		scanner.Scan()
 		text := scanner.Text()
 		parts := strings.SplitN(text, " ", 2)
@@ -91,9 +91,18 @@ func getCommands() map[string]cliCommand {
 			description: "Explore a location",
 			callback:    exploreCommand,
 		},
+		"catch": cliCommand{
+			name:        "catch",
+			description: "Catch a pokemon",
+			callback:    catchCommand,
+		},
 	}
 
 	return commands
+}
+
+func catchCommand(url *ConfigUrl, args ...string) error {
+	return nil
 }
 
 func cacheCommand(url *ConfigUrl, args ...string) error {
@@ -108,12 +117,12 @@ func cacheCommand(url *ConfigUrl, args ...string) error {
 }
 
 func helpCommand(c *ConfigUrl, args ...string) error {
-	fmt.Printf("Welcome to the Pokedex !\n help: Display a help message\n exit: Exit the program\n")
+	fmt.Printf("Welcome to the Pokedex!\n help: Display a help message\n exit: Exit the program\n")
 	return nil
 }
 
 func exitCommand(c *ConfigUrl, args ...string) error {
-	fmt.Println("Goodbye!")
+	fmt.Println("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
 	return nil
 }
