@@ -81,3 +81,35 @@ func GetLocationArea(area string) ([]Pokemon, error) {
 
 	return pokemons, nil
 }
+
+func GetPokemon(name string) (structs.Pokemon, error) {
+
+	//call endpoint pokemon
+	response, err := http.Get(fmt.Sprintf("https://pokeapi.co/api/v2/pokemon/%s", name))
+	if err != nil {
+		return structs.Pokemon{}, err
+	}
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}(response.Body)
+
+	var pokemon structs.Pokemon
+	//read the response body
+
+	bytes, err := io.ReadAll(response.Body)
+	if err != nil {
+		return structs.Pokemon{}, err
+	}
+
+	//unmarshal the response body
+	err = json.Unmarshal(bytes, &pokemon)
+	if err != nil {
+
+		return structs.Pokemon{}, err
+	}
+
+	return pokemon, nil
+}

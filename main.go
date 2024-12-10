@@ -7,6 +7,7 @@ import (
 	"github.com/kiquetal/pokedexcli/internal"
 	"github.com/kiquetal/pokedexcli/internal/pokecache"
 	"github.com/mtslzr/pokeapi-go/structs"
+	"math/rand"
 	"os"
 	"strings"
 	"time"
@@ -29,18 +30,19 @@ func main() {
 		cache: pokecache.NewCache(50 * time.Second),
 	}
 	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Split(bufio.ScanLines)
 
 	for {
 		// Display the prompt
 		fmt.Print("pokedexcli> ")
+		os.Stdout.Sync()
 		//using newScanner
 		scanner.Scan()
-		text := scanner.Text()
-		parts := strings.SplitN(text, " ", 2)
-		commandName := parts[0]
+		text := cleanInput(scanner.Text())
+		commandName := text[0]
 		var args []string
-		if len(parts) > 1 {
-			args = strings.Split(parts[1], " ")
+		if len(text) > 1 {
+			args = text[1:]
 		}
 		allCommands := getCommands()
 		command, ok := allCommands[commandName]
@@ -56,6 +58,12 @@ func main() {
 
 	}
 
+}
+
+func cleanInput(text string) []string {
+	output := strings.ToLower(text)
+	words := strings.Fields(output)
+	return words
 }
 
 func getCommands() map[string]cliCommand {
@@ -102,6 +110,27 @@ func getCommands() map[string]cliCommand {
 }
 
 func catchCommand(url *ConfigUrl, args ...string) error {
+
+	pokemon := args[0]
+	fmt.Printf("Throwing a Pokeball at %s...\n", pokemon)
+	pokemonInfo, err := internal.GetPokemon(pokemon)
+	if err != nil {
+
+		fmt.Printf("Error getting pokemon: %s\n", err)
+		return err
+	}
+	baseExperience := pokemonInfo.BaseExperience
+	//create a chance with a number than could be the value of baseExperience
+	chance := rand.Intn(baseExperience)
+
+	if chance > baseExperience/2 {
+		fmt.Printf("%s was caught!\n", pokemon)
+
+	} else {
+
+		fmt.Printf("%s escaped!\n", pokemon)
+	}
+
 	return nil
 }
 
