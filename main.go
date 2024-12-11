@@ -17,6 +17,7 @@ type ConfigUrl struct {
 	Next     string
 	Previous string
 	cache    *pokecache.Cache
+	pokedex
 }
 type cliCommand struct {
 	name        string
@@ -24,10 +25,17 @@ type cliCommand struct {
 	callback    func(url *ConfigUrl, args ...string) error
 }
 
+type pokedex struct {
+	pokemons map[string]structs.Pokemon
+}
+
 func main() {
 
 	config := ConfigUrl{
 		cache: pokecache.NewCache(50 * time.Second),
+		pokedex: pokedex{
+			pokemons: make(map[string]structs.Pokemon),
+		},
 	}
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Split(bufio.ScanLines)
@@ -104,9 +112,41 @@ func getCommands() map[string]cliCommand {
 			description: "Catch a pokemon",
 			callback:    catchCommand,
 		},
+		"inspect": cliCommand{
+			name:        "inspect",
+			description: "Inspect a pokemon",
+			callback:    inspectCommand,
+		},
 	}
 
 	return commands
+}
+
+func inspectCommand(url *ConfigUrl, args ...string) error {
+
+	//check if pokemon is in the pokedex
+
+	pokemon := args[0]
+
+	pokemonInfo, ok := url.pokedex.pokemons[pokemon]
+	if !ok {
+		fmt.Printf("you have not caught that pokemon")
+		return nil
+	}
+
+	fmt.Printf("Name: %s\n", pokemonInfo.Name)
+	fmt.Printf("Height: %d\n", pokemonInfo.Height)
+	fmt.Printf("Weight: %d\n", pokemonInfo.Weight)
+	fmt.Printf("Stats:\n")
+	for _, stat := range pokemonInfo.Stats {
+		fmt.Printf("- %s: %d\n", stat.Stat.Name, stat.BaseStat)
+	}
+	fmt.Printf("Types:\n")
+	for _, t := range pokemonInfo.Types {
+		fmt.Printf("- %s\n", t.Type.Name)
+	}
+
+	return nil
 }
 
 func catchCommand(url *ConfigUrl, args ...string) error {
@@ -125,7 +165,7 @@ func catchCommand(url *ConfigUrl, args ...string) error {
 
 	if chance > baseExperience/2 {
 		fmt.Printf("%s was caught!\n", pokemon)
-
+		url.pokedex.pokemons[pokemon] = pokemonInfo
 	} else {
 
 		fmt.Printf("%s escaped!\n", pokemon)
