@@ -117,9 +117,23 @@ func getCommands() map[string]cliCommand {
 			description: "Inspect a pokemon",
 			callback:    inspectCommand,
 		},
+		"pokedex": cliCommand{
+			name:        "pokedex",
+			description: "Display the pokedex",
+			callback:    pokedexCommand,
+		},
 	}
 
 	return commands
+}
+
+func pokedexCommand(url *ConfigUrl, args ...string) error {
+
+	fmt.Println("Your Pokedex:")
+	for name := range url.pokedex.pokemons {
+		fmt.Printf("- %s\n", name)
+	}
+	return nil
 }
 
 func inspectCommand(url *ConfigUrl, args ...string) error {
@@ -163,7 +177,15 @@ func catchCommand(url *ConfigUrl, args ...string) error {
 	//create a chance with a number than could be the value of baseExperience
 	chance := rand.Intn(baseExperience)
 
+	//check if the pokemon is already in the pokedex
+
+	fmt.Printf("%d", len(url.pokedex.pokemons))
+	if _, ok := url.pokedex.pokemons[pokemon]; ok {
+		fmt.Printf("%s was already caught!\n", pokemon)
+		return nil
+	}
 	if chance > baseExperience/2 {
+
 		fmt.Printf("%s was caught!\n", pokemon)
 		url.pokedex.pokemons[pokemon] = pokemonInfo
 	} else {
