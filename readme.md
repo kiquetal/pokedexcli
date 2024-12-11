@@ -11,3 +11,4 @@
 - exit : To exit the application
 - cache: Print cache's keys
 - map: Pagination about location-areas
+- mapb: Back to previous page of location-areas
